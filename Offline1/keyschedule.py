@@ -1,5 +1,6 @@
 import numpy as np
 
+
 Rcon = ( 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
 #  convert Rcon to character numpy array
 Rcon = np.frombuffer(bytes(Rcon), dtype=np.uint8).astype(np.uint8)
@@ -50,6 +51,7 @@ def print_key_hex(key):
     print()
 
 def print_key_matrix_hex(key_matrix):
+    print()
     for i in range(0, len(key_matrix)):
         for j in range(0, len(key_matrix[i])):
             print(hex(key_matrix[i][j]), end=" ")
@@ -99,16 +101,57 @@ def schedule_key(key):
 
     return key_matrices
 
+# state_matrix, key_matrix are 4X4 numpy matrices
+def AES_encrypt_round(state_matrix, key_matrix):
+    print_key_matrix_hex(state_matrix)
+    # substritute bytes
+    for i in range(0, len(state_matrix)):
+        for j in range(0, len(state_matrix[i])):
+            state_matrix[i][j] = Sbox[state_matrix[i][j]]
+
+    print_key_matrix_hex(state_matrix)
+
+    # shift rows, shift ith row i times
+    for i in range(0, len(state_matrix)):
+        state_matrix[i] = np.roll(state_matrix[i], -i)
+
+    print_key_matrix_hex(state_matrix)
+    # mix columns
+
+    # add round key
+    state_matrix = np.bitwise_xor(state_matrix, key_matrix)
+
+    
+
+    
+
+
+def encrypt_AES(key, msg):
+    shceduled_key = schedule_key(key)
+
+    # convert msg to 4X4 numpy matrix
+    msg_matrix = np.reshape(np.frombuffer(msg.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
+
+    # add round key
+    state_matrix = np.bitwise_xor(msg_matrix, shceduled_key[0])
+
+    # 9 rounds
+    for i in range(1, 2):
+        AES_encrypt_round(state_matrix, shceduled_key[i])
+
+    # last round
+
+
 key = "Thats my Kung Fu"
 msg = "Two One Nine Two"
 
-scheduled_key = schedule_key(key)
+encrypt_AES(key, msg)
 
-for i in range(0, len(scheduled_key)):
-    # convert scheduled_key[i] to 1D array in column major order and print in hex
-    print("Round ", i, end=": ")
-    print_key_hex(np.reshape(scheduled_key[i], (16,), order='F'))
+# msg_matrix = np.reshape(np.frombuffer(msg.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
+# scheduled_key = schedule_key(key)
 
+# for i in range(0, len(scheduled_key)):
+#     # convert scheduled_key[i] to 1D array in column major order and print in hex
+#     print("Round ", i, end=": ")
+#     print_key_hex(np.reshape(scheduled_key[i], (16,), order='F'))
 
-# print()
-# print_key_matrix_hex(next_matrix(msg_matrix, key_matrix))
