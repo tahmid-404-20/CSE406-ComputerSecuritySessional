@@ -1,5 +1,5 @@
 import numpy as np
-
+from BitVector import *
 
 Rcon = ( 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
 #  convert Rcon to character numpy array
@@ -23,7 +23,7 @@ Sbox = (
 0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 )
 # convert Sbox to character numpy matrix
-# Sbox = np.frombuffer(bytes(Sbox), dtype=np.uint8).astype(np.uint8)
+Sbox = np.frombuffer(bytes(Sbox), dtype=np.uint8).astype(np.uint8)
 Sbox_inv = (
 0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
 0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
@@ -43,7 +43,24 @@ Sbox_inv = (
 0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
 )
 # convert Sbox_inv to character numpy matrix
-# Sbox_inv = np.frombuffer(bytes(Sbox_inv), dtype=np.uint8).astype(np.uint8)
+Sbox_inv = np.frombuffer(bytes(Sbox_inv), dtype=np.uint8).astype(np.uint8)
+
+Mixer = [
+    [BitVector(hexstring="02"), BitVector(hexstring="03"), BitVector(hexstring="01"), BitVector(hexstring="01")],
+    [BitVector(hexstring="01"), BitVector(hexstring="02"), BitVector(hexstring="03"), BitVector(hexstring="01")],
+    [BitVector(hexstring="01"), BitVector(hexstring="01"), BitVector(hexstring="02"), BitVector(hexstring="03")],
+    [BitVector(hexstring="03"), BitVector(hexstring="01"), BitVector(hexstring="01"), BitVector(hexstring="02")]
+]
+
+InvMixer = [
+    [BitVector(hexstring="0E"), BitVector(hexstring="0B"), BitVector(hexstring="0D"), BitVector(hexstring="09")],
+    [BitVector(hexstring="09"), BitVector(hexstring="0E"), BitVector(hexstring="0B"), BitVector(hexstring="0D")],
+    [BitVector(hexstring="0D"), BitVector(hexstring="09"), BitVector(hexstring="0E"), BitVector(hexstring="0B")],
+    [BitVector(hexstring="0B"), BitVector(hexstring="0D"), BitVector(hexstring="09"), BitVector(hexstring="0E")]
+]
+
+AES_MODULUS = BitVector(bitstring='100011011')
+
 
 def print_key_hex(key):
     for i in range(0, len(key)):
@@ -101,29 +118,37 @@ def schedule_key(key):
 
     return key_matrices
 
+def mix_columns(state_matrix, inv=False):
+    mixer = Mixer
+    
+    if inv:
+        mixer = InvMixer
+
+    result_matrix = np.zeros((4, 4), dtype=np.uint8)
+
+    for i in range(0, len(state_matrix)):
+        for j in range(0, len(state_matrix[i])):
+            for k in range(0, len(state_matrix[i])):
+                result_matrix[i][j] ^= Mixer[i][k].gf_multiply_modular(BitVector(intVal=state_matrix[k][j], size=8), AES_MODULUS, 8).intValue()            
+
+    return result_matrix
+
 # state_matrix, key_matrix are 4X4 numpy matrices
 def AES_encrypt_round(state_matrix, key_matrix):
-    print_key_matrix_hex(state_matrix)
     # substritute bytes
     for i in range(0, len(state_matrix)):
         for j in range(0, len(state_matrix[i])):
             state_matrix[i][j] = Sbox[state_matrix[i][j]]
 
-    print_key_matrix_hex(state_matrix)
-
     # shift rows, shift ith row i times
     for i in range(0, len(state_matrix)):
         state_matrix[i] = np.roll(state_matrix[i], -i)
-
-    print_key_matrix_hex(state_matrix)
     # mix columns
-
+    state_matrix = mix_columns(state_matrix)
     # add round key
     state_matrix = np.bitwise_xor(state_matrix, key_matrix)
 
-    
-
-    
+    return state_matrix    
 
 
 def encrypt_AES(key, msg):
@@ -136,22 +161,28 @@ def encrypt_AES(key, msg):
     state_matrix = np.bitwise_xor(msg_matrix, shceduled_key[0])
 
     # 9 rounds
-    for i in range(1, 2):
-        AES_encrypt_round(state_matrix, shceduled_key[i])
+    for i in range(1, 10):
+        state_matrix = AES_encrypt_round(state_matrix, shceduled_key[i])
 
     # last round
+    # substitute bytes
+    for i in range(0, len(state_matrix)):
+        for j in range(0, len(state_matrix[i])):
+            state_matrix[i][j] = Sbox[state_matrix[i][j]]
+
+    # shift rows, shift ith row i times
+    for i in range(0, len(state_matrix)):
+        state_matrix[i] = np.roll(state_matrix[i], -i)
+
+    # add round key
+    state_matrix = np.bitwise_xor(state_matrix, shceduled_key[10])
+
+    return state_matrix
+
 
 
 key = "Thats my Kung Fu"
 msg = "Two One Nine Two"
 
-encrypt_AES(key, msg)
-
-# msg_matrix = np.reshape(np.frombuffer(msg.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
-# scheduled_key = schedule_key(key)
-
-# for i in range(0, len(scheduled_key)):
-#     # convert scheduled_key[i] to 1D array in column major order and print in hex
-#     print("Round ", i, end=": ")
-#     print_key_hex(np.reshape(scheduled_key[i], (16,), order='F'))
+print_key_matrix_hex(encrypt_AES(key, msg))
 
