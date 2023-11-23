@@ -153,8 +153,13 @@ def AES_encrypt_round(state_matrix, key_matrix):
 def encrypt_AES(key, msg):
     shceduled_key = schedule_key(key)
 
-    # convert msg to 4X4 numpy matrix
-    msg_matrix = np.reshape(np.frombuffer(msg.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
+    # msg can be ascii or unicode, but it should be 16 characters long
+    # convert msg to 4X4 matrix
+    # matrix is a 4X4 list
+    # traverse matrix column wise and store msg character by character
+    msg_matrix = np.zeros((4, 4), dtype=np.uint8)
+    for i in range(0, len(msg)):
+        msg_matrix[i % 4][i // 4] = ord(msg[i])
 
     print_key_matrix_hex(msg_matrix)
 
@@ -203,7 +208,9 @@ def decrypt_AES(key, msg):
     shceduled_key = schedule_key(key)
 
     # # convert msg to 4X4 numpy matrix
-    msg_matrix = np.reshape(np.frombuffer(msg.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
+    msg_matrix = np.zeros((4, 4), dtype=np.uint8)
+    for i in range(0, len(msg)):
+        msg_matrix[i % 4][i // 4] = ord(msg[i])
 
     # add round key
     state_matrix = np.bitwise_xor(msg_matrix, shceduled_key[10])
@@ -227,15 +234,14 @@ def decrypt_AES(key, msg):
 
     return state_matrix
 
-def convert_matrix_to_string(matrix):
-    # convert matrix to string in column major order, the matrix can contain non printable characters
-    result = ""
-    result = result.encode('ascii')
-    for i in range(0, len(matrix[0])):
-        for j in range(0, len(matrix)):
-            # convert matrix[j][i] to string with ascii encoding and append to result
-            result += chr(matrix[j][i]).encode('ascii')
-    return result
+def matrix_to_string(matrix):
+    ascii_string = ""
+    for i in range(0,len(matrix[0])):
+        for j in range(0,len(matrix)):
+            # print(chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16)), end="")
+            # ascii_string += chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16))
+            ascii_string += chr(matrix[j][i])
+    return ascii_string
 
 
 key = "Thats my Kung Fu"
@@ -243,11 +249,18 @@ msg = "Two One Nine Two"
 
 encrypted_matrix = encrypt_AES(key, msg)
 
-print(type(encrypted_matrix))
+# print(type(encrypted_matrix))
+print("Encypted matrix:")
 print_key_matrix_hex(encrypted_matrix)
 
-decrypted_matrix = decrypt_AES(key, convert_matrix_to_string(encrypted_matrix))
+encrypted_string = matrix_to_string(encrypted_matrix)
+# print(type(matrix_to_string(encrypted_matrix)))
+
+decrypted_matrix = decrypt_AES(key, encrypted_string)
 print_key_matrix_hex(decrypted_matrix)
-print(convert_matrix_to_string(decrypted_matrix))
+
+decrypted_string = matrix_to_string(decrypted_matrix)
+print(decrypted_string)
+# print(convert_matrix_to_string(decrypted_matrix))
 
 
