@@ -74,6 +74,19 @@ def print_key_matrix_hex(key_matrix):
             print(hex(key_matrix[i][j]), end=" ")
         print()
 
+# both use cases
+def split_string_into_blocks(input_string, block_size=16):
+    return [input_string[i:i+block_size] for i in range(0, len(input_string), block_size)]
+
+def matrix_to_string(matrix):
+    ascii_string = ""
+    for i in range(0,len(matrix[0])):
+        for j in range(0,len(matrix)):
+            # print(chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16)), end="")
+            # ascii_string += chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16))
+            ascii_string += chr(matrix[j][i])
+    return ascii_string
+
 # can be used for both mix_columns and inv_mix_columns
 def mix_columns(state_matrix, inv=False):
     mixer = Mixer
@@ -150,8 +163,7 @@ def AES_encrypt_round(state_matrix, key_matrix):
     return state_matrix    
 
 
-def encrypt_AES(key, msg):
-    shceduled_key = schedule_key(key)
+def aes_encrypt_block(scheduled_key, msg):
 
     # msg can be ascii or unicode, but it should be 16 characters long
     # convert msg to 4X4 matrix
@@ -161,14 +173,14 @@ def encrypt_AES(key, msg):
     for i in range(0, len(msg)):
         msg_matrix[i % 4][i // 4] = ord(msg[i])
 
-    print_key_matrix_hex(msg_matrix)
+    # print_key_matrix_hex(msg_matrix)
 
     # add round key
-    state_matrix = np.bitwise_xor(msg_matrix, shceduled_key[0])
+    state_matrix = np.bitwise_xor(msg_matrix, scheduled_key[0])
 
     # 9 rounds
     for i in range(1, 10):
-        state_matrix = AES_encrypt_round(state_matrix, shceduled_key[i])
+        state_matrix = AES_encrypt_round(state_matrix, scheduled_key[i])
 
     # last round
     # substitute bytes
@@ -181,9 +193,26 @@ def encrypt_AES(key, msg):
         state_matrix[i] = np.roll(state_matrix[i], -i)
 
     # add round key
-    state_matrix = np.bitwise_xor(state_matrix, shceduled_key[10])
+    state_matrix = np.bitwise_xor(state_matrix, scheduled_key[10])
 
-    return state_matrix
+    return matrix_to_string(state_matrix)
+
+def aes_encrypt_msg(msg, key):
+    # part the msg in 16 bytes chunks
+    msg_blocks = split_string_into_blocks(msg)
+
+    shceduled_key = schedule_key(key)
+
+    encrypted_msg_blocks = []
+    for i in range(0, len(msg_blocks)):
+        encrypted_msg_blocks.append(aes_encrypt_block(shceduled_key, msg_blocks[i]))
+
+    # join the encrypted blocks
+    encrypted_msg = ""
+    for i in range(0, len(encrypted_msg_blocks)):
+        encrypted_msg += encrypted_msg_blocks[i]
+    
+    return encrypted_msg
 
 # decryption codes
 def AES_decrypt_round(state_matrix, key_matrix):
@@ -204,20 +233,18 @@ def AES_decrypt_round(state_matrix, key_matrix):
 
     return state_matrix
 
-def decrypt_AES(key, msg):
-    shceduled_key = schedule_key(key)
-
+def aes_decrypt_block(scheduled_key, msg):
     # # convert msg to 4X4 numpy matrix
     msg_matrix = np.zeros((4, 4), dtype=np.uint8)
     for i in range(0, len(msg)):
         msg_matrix[i % 4][i // 4] = ord(msg[i])
 
     # add round key
-    state_matrix = np.bitwise_xor(msg_matrix, shceduled_key[10])
+    state_matrix = np.bitwise_xor(msg_matrix, scheduled_key[10])
 
     # 9 rounds
     for i in range(9, 0, -1):
-        state_matrix = AES_decrypt_round(state_matrix, shceduled_key[i])
+        state_matrix = AES_decrypt_round(state_matrix, scheduled_key[i])
 
     # last round
     # inverse shift rows, shift ith row i times
@@ -230,37 +257,55 @@ def decrypt_AES(key, msg):
             state_matrix[i][j] = Sbox_inv[state_matrix[i][j]]
 
     # add round key
-    state_matrix = np.bitwise_xor(state_matrix, shceduled_key[0])
+    state_matrix = np.bitwise_xor(state_matrix, scheduled_key[0])
 
-    return state_matrix
+    return matrix_to_string(state_matrix)
 
-def matrix_to_string(matrix):
-    ascii_string = ""
-    for i in range(0,len(matrix[0])):
-        for j in range(0,len(matrix)):
-            # print(chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16)), end="")
-            # ascii_string += chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16))
-            ascii_string += chr(matrix[j][i])
-    return ascii_string
+def aes_decrypt_msg(key, msg):
+    # part the msg in 16 bytes chunks
+    msg_blocks = split_string_into_blocks(msg)
 
+    scheduled_key = schedule_key(key)
+
+    decrypted_msg_blocks = []
+    for i in range(0, len(msg_blocks)):
+        decrypted_msg_blocks.append(aes_decrypt_block(scheduled_key, msg_blocks[i]))
+
+    # print(decrypted_msg_blocks)
+    # join the encrypted blocks
+    decrypted_msg = ""
+    for i in range(0, len(decrypted_msg_blocks)):
+        decrypted_msg += decrypted_msg_blocks[i]
+    
+    return decrypted_msg
 
 key = "Thats my Kung Fu"
 msg = "Two One Nine Two"
 
-encrypted_matrix = encrypt_AES(key, msg)
+encrypted_string = aes_encrypt_msg(key + msg + "ok boss", key)
+
+print("Encrypted string:")
+print(encrypted_string.encode('ascii', 'replace'))
+
+decrypted_string = aes_decrypt_msg(key, encrypted_string)
+
+print("Decrypted string:")
+print(decrypted_string)
+
+# encrypted_matrix = encrypt_AES(key, msg)
 
 # print(type(encrypted_matrix))
-print("Encypted matrix:")
-print_key_matrix_hex(encrypted_matrix)
+# print("Encypted matrix:")
+# print_key_matrix_hex(encrypted_matrix)
 
-encrypted_string = matrix_to_string(encrypted_matrix)
-# print(type(matrix_to_string(encrypted_matrix)))
+# encrypted_string = matrix_to_string(encrypted_matrix)
+# print(matrix_to_string(encrypted_matrix))
 
-decrypted_matrix = decrypt_AES(key, encrypted_string)
-print_key_matrix_hex(decrypted_matrix)
+# decrypted_matrix = decrypt_AES(key, encrypted_string)
+# print_key_matrix_hex(decrypted_matrix)
 
-decrypted_string = matrix_to_string(decrypted_matrix)
-print(decrypted_string)
-# print(convert_matrix_to_string(decrypted_matrix))
+# decrypted_string = matrix_to_string(decrypted_matrix)
+# print(decrypted_string)
+# # print(convert_matrix_to_string(decrypted_matrix))
 
 
