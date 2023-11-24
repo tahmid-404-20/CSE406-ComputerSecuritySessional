@@ -1,6 +1,10 @@
 import math
 import random
 import time
+from sympy import randprime
+
+def generate_prime_with_bits(bits):
+    return randprime(1 << (bits-1), 1 << bits)
 
 # computes n^x % p
 def modulo_power(n, x, p):
@@ -61,52 +65,98 @@ def multiply_point(P, n, a, p):
     return Q
 
 
+def calculate():
+    # 128 digit prime
+    n_iteration = 5
+    print("k \t\t A \t\t\t B \t\t\t R")
+
+    for key in [128, 192, 256]:
+        print(key, end = "\t") 
+
+        time_taken_A = 0
+        time_taken_B = 0
+        time_taken_R = 0
+        for _ in range(1, n_iteration):      
+            p = generate_prime_with_bits(key)
+
+            k_a = p - (1 << 20) * random.randint(1,1000)
+            k_b = p - (1 << 20) * random.randint(1,1000)
+            
+            a = -3
+            b = 4
+            G = (2, 7)
+
+            start = time.time()
+            # print(k_a , end = "\t")
+            A = multiply_point(G, k_a, a, p)
+            time_taken_A += time.time() - start
+
+            start = time.time()
+            B = multiply_point(G, k_b, a, p)
+            time_taken_B += time.time() - start
+
+            start = time.time()
+            R = multiply_point(A, k_b, a, p)
+            time_taken_R += time.time() - start
+
+        print(time_taken_A * 1000 / n_iteration, end = "\t")
+        print(time_taken_B * 1000 / n_iteration, end = "\t")
+        print(time_taken_R * 1000 / n_iteration, end = "\t")
+        print()
+
+
+calculate()
+
 # print(modulo_inverse(2, 17))
 
 # 16 digit prime
-prime = 8735839625367917
+# prime = 8735839625367917
 
-prime = 113
+# prime = 113
 
-# code starts here
-# the elliptic curve is y^2 = x^3 - 3x + 4
-a = -3
-b = 4
+# # code starts here
+# # the elliptic curve is y^2 = x^3 - 3x + 4
+# a = -3
+# b = 4
 
-p = prime
-G = (2, 7)
+# p = prime
+# G = (2, 7)
 
-# both alice and bob have agreed on the values of a, b, p, G
+# # both alice and bob have agreed on the values of a, b, p, G
 
-# E is the order of the elliptic curve
-E = p + 1 - 2 * int(math.sqrt(p))
+# # E is the order of the elliptic curve
+# E = p + 1 - 2 * int(math.sqrt(p))
 
-start = time.time()
+# start = time.time()
 
-# alice code
-# alice's private key
-k_a = random.randint(2, E-1)
-# alice's public key
-A = multiply_point(G, k_a, a, p)
+# # alice code
+# # alice's private key
+# k_a = random.randint(2, E-1)
+# # alice's public key
+# A = multiply_point(G, k_a, a, p)
 
 
-# bob code
-k_b = random.randint(2, E-1)
-B = multiply_point(G, k_b, a, p)
+# # bob code
+# k_b = random.randint(2, E-1)
+# B = multiply_point(G, k_b, a, p)
 
-# alice sends A to bob
-# bob sends B to alice
+# # alice sends A to bob
+# # bob sends B to alice
 
-# alice computes k_aB
-k_aB = multiply_point(B, k_a, a, p)
+# # alice computes k_aB
+# k_aB = multiply_point(B, k_a, a, p)
 
-# bob computes k_bA
-k_bA = multiply_point(A, k_b, a, p)
+# # bob computes k_bA
+# k_bA = multiply_point(A, k_b, a, p)
 
-time_taken = time.time() - start
+# time_taken = time.time() - start
 
-print("Time taken: ", time_taken * 1000, "ms")
+# print("Time taken: ", time_taken * 1000, "ms")
 
-print("Alice ", k_aB)
-print("Bob ", k_bA)
+# print("Alice ", k_aB)
+# print("Bob ", k_bA)
+
+# for i in range(1,19):
+#     print(i, end ="")
+#     print("P: ", multiply_point((5,1), i, 2, 17))
 

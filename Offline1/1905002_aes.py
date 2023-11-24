@@ -1,4 +1,5 @@
 import numpy as np
+import time as time
 from BitVector import *
 
 Rcon = ( 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
@@ -197,15 +198,13 @@ def aes_encrypt_block(scheduled_key, msg):
 
     return matrix_to_string(state_matrix)
 
-def aes_encrypt_msg(msg, key):
+def aes_encrypt_msg(msg, scheduled_key):
     # part the msg in 16 bytes chunks
     msg_blocks = split_string_into_blocks(msg)
 
-    shceduled_key = schedule_key(key)
-
     encrypted_msg_blocks = []
     for i in range(0, len(msg_blocks)):
-        encrypted_msg_blocks.append(aes_encrypt_block(shceduled_key, msg_blocks[i]))
+        encrypted_msg_blocks.append(aes_encrypt_block(scheduled_key, msg_blocks[i]))
 
     # join the encrypted blocks
     encrypted_msg = ""
@@ -261,11 +260,9 @@ def aes_decrypt_block(scheduled_key, msg):
 
     return matrix_to_string(state_matrix)
 
-def aes_decrypt_msg(key, msg):
+def aes_decrypt_msg(msg, scheduled_key):
     # part the msg in 16 bytes chunks
     msg_blocks = split_string_into_blocks(msg)
-
-    scheduled_key = schedule_key(key)
 
     decrypted_msg_blocks = []
     for i in range(0, len(msg_blocks)):
@@ -279,18 +276,34 @@ def aes_decrypt_msg(key, msg):
     
     return decrypted_msg
 
-key = "Thats my Kung Fu"
-msg = "Two One Nine Two"
 
-encrypted_string = aes_encrypt_msg(key + msg + "ok boss", key)
+print("Enter message to encrypt: ", end="")
+msg = input()
+# msg = "Two One Nine Two"
+
+key = "Thats my Kung Fu"
+
+start = time.time()
+scheduled_key = schedule_key(key)
+key_schedule_time = time.time() - start
+
+print("Key schedule time: ", key_schedule_time * 1000, "ms")
+
+start = time.time()
+encrypted_string = aes_encrypt_msg(msg, scheduled_key)
+encryption_time = time.time() - start
 
 print("Encrypted string:")
 print(encrypted_string.encode('ascii', 'replace'))
+print("Encryption time: ", encryption_time * 1000, "ms")
 
-decrypted_string = aes_decrypt_msg(key, encrypted_string)
+start = time.time()
+decrypted_string = aes_decrypt_msg(encrypted_string, scheduled_key)
+decryption_time = time.time() - start
 
 print("Decrypted string:")
 print(decrypted_string)
+print("Decryption time: ", decryption_time * 1000, "ms")
 
 # encrypted_matrix = encrypt_AES(key, msg)
 
