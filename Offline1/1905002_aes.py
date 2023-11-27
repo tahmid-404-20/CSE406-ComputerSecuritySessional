@@ -2,9 +2,7 @@ import numpy as np
 import time as time
 from BitVector import *
 
-Rcon = ( 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
-#  convert Rcon to character numpy array
-Rcon = np.frombuffer(bytes(Rcon), dtype=np.uint8).astype(np.uint8)
+Rcon = []
 Sbox = (
 0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
 0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -76,6 +74,7 @@ def print_key_matrix_hex(key_matrix):
             print(hex(key_matrix[i][j]), end=" ")
         print()
 
+
 # both use cases
 def split_string_into_blocks(input_string, block_size=BLOCK_LENGTH_IN_BYTES):
     return [input_string[i:i+block_size] for i in range(0, len(input_string), block_size)]
@@ -85,7 +84,7 @@ def matrix_to_string(matrix):
     for i in range(0,len(matrix[0])):
         for j in range(0,len(matrix)):
             ascii_string += chr(matrix[j][i])
-    return ascii_string
+    return ascii_string  
 
 # can be used for both mix_columns and inv_mix_columns
 def mix_columns(state_matrix, inv=False):
@@ -403,6 +402,13 @@ def demonstrate():
     print("Encryption Time: ", encryption_time * 1000, "ms")
     print("Decryption Time: ", decryption_time * 1000, "ms")
 
+
+Rcon.append(1)
+for i in range(1, 10):
+    if Rcon[i - 1] < 0x80:
+        Rcon.append(2 * Rcon[i - 1])
+    else:
+        Rcon.append((2 * Rcon[i - 1]) ^ 0x11b)
 
 
 if __name__ == "__main__":
