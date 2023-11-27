@@ -30,9 +30,6 @@ def findPrimesD(d):
 # Driver code
 if __name__ == '__main__':
      
-    # Generate primes
-    sieve()
-    d = 16
-    findPrimesD(d)
+    print(chr(8))
      
 # This code is contributed by Surendra_Gangwar

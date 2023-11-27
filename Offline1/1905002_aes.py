@@ -61,6 +61,7 @@ InvMixer = [
 ]
 
 AES_MODULUS = BitVector(bitstring='100011011')
+BLOCK_LENGTH_IN_BYTES = 16
 
 # for debugging and testing
 def print_key_hex(key):
@@ -76,15 +77,13 @@ def print_key_matrix_hex(key_matrix):
         print()
 
 # both use cases
-def split_string_into_blocks(input_string, block_size=16):
+def split_string_into_blocks(input_string, block_size=BLOCK_LENGTH_IN_BYTES):
     return [input_string[i:i+block_size] for i in range(0, len(input_string), block_size)]
 
 def matrix_to_string(matrix):
     ascii_string = ""
     for i in range(0,len(matrix[0])):
         for j in range(0,len(matrix)):
-            # print(chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16)), end="")
-            # ascii_string += chr(int(BitVector(intVal=matrix[j][i], size=8).get_bitvector_in_hex(),16))
             ascii_string += chr(matrix[j][i])
     return ascii_string
 
@@ -100,9 +99,52 @@ def mix_columns(state_matrix, inv=False):
     for i in range(0, len(state_matrix)):
         for j in range(0, len(state_matrix[i])):
             for k in range(0, len(state_matrix[i])):
-                result_matrix[i][j] ^= mixer[i][k].gf_multiply_modular(BitVector(intVal=state_matrix[k][j], size=8), AES_MODULUS, 8).intValue()            
+                result_matrix[i][j] ^= mixer[i][k].gf_multiply_modular(BitVector(intVal=state_matrix[k][j], size=8), AES_MODULUS, 8).intValue()
+                     
 
     return result_matrix
+
+def bitwise_xor_string(string1, string2):
+    bv1 = BitVector(textstring=string1)
+    bv2 = BitVector(textstring=string2)
+
+    bv3 = bv1 ^ bv2
+
+    return bv3.get_bitvector_in_ascii()
+
+def do_proper_padding(msg_blocks):
+    # last block
+    last_block = msg_blocks[-1]
+
+    # if last block is full, add a new block of BLOCK_LENGTH_IN_BYTES=16 bytes, all 0s
+    if len(last_block) == BLOCK_LENGTH_IN_BYTES:
+        msg_blocks.append(chr(0) * BLOCK_LENGTH_IN_BYTES)
+        return msg_blocks
+
+    # if not full, add padding with each byte having value of number of bytes added
+    padding_length = BLOCK_LENGTH_IN_BYTES - len(last_block)
+    for _ in range(0, padding_length):
+        # print(padding_length)
+        last_block += chr(padding_length)
+        
+    msg_blocks[-1] = last_block
+
+    return msg_blocks
+
+def remove_proper_padding(msg_blocks):
+    # last block
+    last_block = msg_blocks[-1]
+
+    # extract last byte, it is the number of bytes added, if it is 0, then remove the last block
+    last_byte = ord(last_block[-1])
+    if last_byte == 0:
+        msg_blocks.pop()
+        return msg_blocks
+    
+    # if not 0, then remove the last last_byte characters
+    msg_blocks[-1] = last_block[:-last_byte]
+    return msg_blocks
+
 
 def get_next_round_key(key, round):
     # key is 4X4 numpy matrix
@@ -131,6 +173,7 @@ def get_next_round_key(key, round):
 
     return next_key
     
+
 
 # gets key as a 128 bit string and returns a 11 size array of 4X4 numpy matrices
 def schedule_key(key):
@@ -165,8 +208,6 @@ def AES_encrypt_round(state_matrix, key_matrix):
 
 
 def aes_encrypt_block(scheduled_key, msg):
-
-    # msg can be ascii or unicode, but it should be 16 characters long
     # convert msg to 4X4 matrix
     # matrix is a 4X4 list
     # traverse matrix column wise and store msg character by character
@@ -198,13 +239,24 @@ def aes_encrypt_block(scheduled_key, msg):
 
     return matrix_to_string(state_matrix)
 
-def aes_encrypt_msg(msg, scheduled_key):
-    # part the msg in 16 bytes chunks
+
+def aes_encrypt_msg(msg, scheduled_key, initializing_vector):
+    # part the msg in 16 byte chunks
     msg_blocks = split_string_into_blocks(msg)
+    do_proper_padding(msg_blocks)
+
+    # print(msg_blocks)
+
+    # first_block is a 16 byte string, comprising of 128 bit '0's, but the character doesn't matter that much
+    first_block = [chr(0) * BLOCK_LENGTH_IN_BYTES]
+    msg_blocks = first_block + msg_blocks
+
+    xor_block = initializing_vector
 
     encrypted_msg_blocks = []
     for i in range(0, len(msg_blocks)):
-        encrypted_msg_blocks.append(aes_encrypt_block(scheduled_key, msg_blocks[i]))
+        xor_block = aes_encrypt_block(scheduled_key, bitwise_xor_string(msg_blocks[i], xor_block))
+        encrypted_msg_blocks.append(xor_block)
 
     # join the encrypted blocks
     encrypted_msg = ""
@@ -265,45 +317,96 @@ def aes_decrypt_msg(msg, scheduled_key):
     msg_blocks = split_string_into_blocks(msg)
 
     decrypted_msg_blocks = []
-    for i in range(0, len(msg_blocks)):
-        decrypted_msg_blocks.append(aes_decrypt_block(scheduled_key, msg_blocks[i]))
+    for i in range(1, len(msg_blocks)):
+        decrypted_msg_blocks.append(bitwise_xor_string(aes_decrypt_block(scheduled_key, msg_blocks[i]), msg_blocks[i - 1]))
 
+    decrypted_msg_blocks = remove_proper_padding(decrypted_msg_blocks)
     # print(decrypted_msg_blocks)
     # join the encrypted blocks
     decrypted_msg = ""
     for i in range(0, len(decrypted_msg_blocks)):
         decrypted_msg += decrypted_msg_blocks[i]
-    
+
     return decrypted_msg
 
+def make_key(key):
+    if len(key) == 16:
+        return key
+    elif len(key) > 16:
+        return key[:16]
+    else:
+        return key + 'X' * (16 - len(key))
 
-print("Enter message to encrypt: ", end="")
-msg = input()
-# msg = "Two One Nine Two"
+def print_string_in_hex(string):
+    print("[ ", end="")
+    for i in range(0, len(string)):
+        print(hex(ord(string[i])), end=" ")
+    print("]")
 
-key = "Thats my Kung Fu"
 
-start = time.time()
-scheduled_key = schedule_key(key)
-key_schedule_time = time.time() - start
+def demonstrate():
 
-print("Key schedule time: ", key_schedule_time * 1000, "ms")
+    # dealing with key
+    # key = "Thats my Kung Fu"
+    print("Key: ")
+    print("In ASCII: ", end="")
+    key = input()
 
-start = time.time()
-encrypted_string = aes_encrypt_msg(msg, scheduled_key)
-encryption_time = time.time() - start
+    key = make_key(key)
+    print("In HEX: ", end="")
+    print_string_in_hex(key)
+    print()
 
-print("Encrypted string:")
-print(encrypted_string.encode('ascii', 'replace'))
-print("Encryption time: ", encryption_time * 1000, "ms")
 
-start = time.time()
-decrypted_string = aes_decrypt_msg(encrypted_string, scheduled_key)
-decryption_time = time.time() - start
+    print("Plain Text:")
+    print("In ASCII: ", end="")
+    msg = input()
 
-print("Decrypted string:")
-print(decrypted_string)
-print("Decryption time: ", decryption_time * 1000, "ms")
+    print("In HEX: ", end="")
+    print_string_in_hex(msg)
+    print()
+
+    # 16 byte string
+    initializing_vector = "Thats my Kung Fu"
+
+    start = time.time()
+    scheduled_key = schedule_key(key)
+    key_schedule_time = time.time() - start
+
+    start = time.time()
+    encrypted_string = aes_encrypt_msg(msg, scheduled_key, initializing_vector)
+    encryption_time = time.time() - start
+
+    # now printing the encrypted string
+    print("Ciphered Text:")
+    print("In ASCII: ", end="")
+    print(encrypted_string.encode('ascii', 'replace'))
+    print("In HEX: ", end="")
+    print_string_in_hex(encrypted_string)
+    print()
+
+    start = time.time()
+    decrypted_string = aes_decrypt_msg(encrypted_string, scheduled_key)
+    decryption_time = time.time() - start
+
+    # now printing the decrypted string
+    print("Deciphered Text:")
+    print("In ASCII: ", end="")
+    print(decrypted_string)
+    print("In HEX: ", end="")
+    print_string_in_hex(decrypted_string)
+    print()
+
+
+    print("Execution Time Details:")
+    print("Key Schedule Time: ", key_schedule_time * 1000, "ms")
+    print("Encryption Time: ", encryption_time * 1000, "ms")
+    print("Decryption Time: ", decryption_time * 1000, "ms")
+
+
+
+if __name__ == "__main__":
+    demonstrate()
 
 # encrypted_matrix = encrypt_AES(key, msg)
 

@@ -79,12 +79,12 @@ def calculate():
         for _ in range(1, n_iteration):      
             p = generate_prime_with_bits(key)
 
-            k_a = p - (1 << 20) * random.randint(1,1000)
-            k_b = p - (1 << 20) * random.randint(1,1000)
+            k_a = p - (1 << 10) * random.randint(1,1000)
+            k_b = p - (1 << 10) * random.randint(1,1000)
             
             a = -3
             b = 4
-            G = (2, 7)
+            G = (0, 2)
 
             start = time.time()
             # print(k_a , end = "\t")
@@ -104,8 +104,8 @@ def calculate():
         print(time_taken_R * 1000 / n_iteration, end = "\t")
         print()
 
-
-calculate()
+if __name__ == "__main__":
+    calculate()
 
 # print(modulo_inverse(2, 17))
 
