@@ -6,6 +6,9 @@ from sympy import randprime
 def generate_prime_with_bits(bits):
     return randprime(1 << (bits-1), 1 << bits)
 
+def generate_prime_with_digits(n):
+    return randprime(10 ** (n-1), 10 ** n)
+
 # computes n^x % p
 def modulo_power(n, x, p):
     if x == 0:
@@ -85,6 +88,8 @@ def calculate():
             a = -3
             b = 4
             G = (0, 2)
+
+            # 4*(-3)^3 + 27*4^2 = 324nopass != 0 (mod p) as p is very large and is prime, so the elliptic curve is non-singular
 
             start = time.time()
             # print(k_a , end = "\t")
