@@ -9,11 +9,9 @@ ecc = importlib.import_module('1905002_ecc')
 # Create a socket object
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Define the server address and port
 host = '127.0.0.1'
 port = 12345
 
-# Connect to the server
 client_socket.connect((host, port))
 
 # alice is client
@@ -22,35 +20,42 @@ b = 4
 G = (0, 2)
 p = ecc.generate_prime_with_digits(16)
 
+# k_a --> Alice's private key
 k_a = p - (1 << 10) * random.randint(1,1000)
 
+# A --> Alice's public key
 A = ecc.multiply_point(G, k_a, a, p)
 
 data_to_send =  {'G':G, 'a':a, 'b':b, 'p': p, 'A':A}
 
-# Serialize the dictionary using pickle
+# Serialize the dictionary
 serialized_data = pickle.dumps(data_to_send)
-
-# Send the serialized data to the server
 client_socket.send(serialized_data)
 
-# Receive data from the server
+# Receive B from server
 data = client_socket.recv(8192)
 received_dict = pickle.loads(data)
-
 B = received_dict['B']
 
-R = ecc.multiply_point(B, k_a, a, p)
+(key,y) = ecc.multiply_point(B, k_a, a, p)
 
-print("R =", R)
-
-# send a string that says "Hello server! I am Alice."
-client_socket.send(b"Hello server! I am Alice.")
+# tell that you are ready
+client_socket.send(b"I am ready")
 
 # receive a string from the server
-data = client_socket.recv(8192)
-msg = data.decode()
-print(msg)
+msg = client_socket.recv(8192).decode()
 
-# Close the socket
+if msg == "I am ready":
+    print("Enter the message to send: ")
+    text = input()
+    key = str(key)
+
+    initialization_vector = str(random.randint(10 ** 15, 10 ** 16 - 1)) # 16 digit random number
+    encrypted_text = aes.aes_encrypt(text, key, initialization_vector)
+
+    client_socket.send(encrypted_text.encode())
+
+else:
+    print("Server not ready. Closing...")
+    
 client_socket.close()

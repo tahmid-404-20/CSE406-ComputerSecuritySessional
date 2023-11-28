@@ -264,6 +264,9 @@ def aes_encrypt_msg(msg, scheduled_key, initializing_vector):
     
     return encrypted_msg
 
+def aes_encrypt(msg, key, initializing_vector):
+    return aes_encrypt_msg(msg, schedule_key(make_key(key)), initializing_vector)
+
 # decryption codes
 def AES_decrypt_round(state_matrix, key_matrix):
     # inverse shift rows, shift ith row i times
@@ -327,6 +330,9 @@ def aes_decrypt_msg(msg, scheduled_key):
         decrypted_msg += decrypted_msg_blocks[i]
 
     return decrypted_msg
+
+def aes_decrypt(msg, key):
+    return aes_decrypt_msg(msg, schedule_key(make_key(key)))
 
 def make_key(key):
     if len(key) == 16:
