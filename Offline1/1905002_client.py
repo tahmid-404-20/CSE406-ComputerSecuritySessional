@@ -18,7 +18,7 @@ client_socket.connect((host, port))
 a = -3
 b = 4
 G = (0, 2)
-p = ecc.generate_prime_with_digits(16)
+p = ecc.generate_prime_with_bits(128)
 
 # k_a --> Alice's private key
 k_a = p - (1 << 10) * random.randint(1,1000)
@@ -48,7 +48,7 @@ msg = client_socket.recv(8192).decode()
 if msg == "I am ready":
     print("Enter the message to send: ")
     text = input()
-    key = str(key)
+    key = aes.convert_number_key_to_string(key)
 
     initialization_vector = str(random.randint(10 ** 15, 10 ** 16 - 1)) # 16 digit random number
     encrypted_text = aes.aes_encrypt(text, key, initialization_vector)

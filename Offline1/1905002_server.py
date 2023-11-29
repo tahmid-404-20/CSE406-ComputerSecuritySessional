@@ -56,11 +56,11 @@ if msg == "I am ready":
 
         # receive encrypted text
         encrypted_text = client_socket.recv(8192).decode()
-        key = str(key)
-        print(key)
+        key = aes.convert_number_key_to_string(key)
+
+        # print(key.encode('ascii', 'replace'))
         decrypted_text = aes.aes_decrypt(encrypted_text, key)
         print("Decrypted text:", decrypted_text)
-
 else:
         print("Client not ready. Closing...")
 

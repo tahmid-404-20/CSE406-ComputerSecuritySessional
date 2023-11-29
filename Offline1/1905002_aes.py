@@ -176,7 +176,11 @@ def get_next_round_key(key, round):
 
 # gets key as a 128 bit string and returns a 11 size array of 4X4 numpy matrices
 def schedule_key(key):
-    key_matrix = np.reshape(np.frombuffer(key.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
+    # key_matrix = np.reshape(np.frombuffer(key.encode('ascii'), dtype=np.uint8).astype(np.uint8), (4, 4), order='F')
+
+    key_matrix = np.zeros((4, 4), dtype=np.uint8)
+    for i in range(0, len(key)):
+        key_matrix[i % 4][i // 4] = ord(key[i])
 
     # 11 size array of 4X4 numpy matrices
     key_matrices = np.zeros((11, 4, 4), dtype=np.uint8)
@@ -349,6 +353,21 @@ def print_string_in_hex(string):
     print("]")
 
 
+def convert_number_key_to_string(number_key):
+    binary_key = bin(number_key)[2:]  # Remove the '0b' prefix from the binary representation
+    string_key = ""
+
+    # iterate from the end of the string to the beginning in steps of 8
+    for i in range(len(binary_key) - 8, -8, -8):
+        # if the number of bits left is less than 8, then take the remaining bits
+        if i < 0:
+            string_key += chr(int(binary_key[:i + 8], 2))
+        else:
+            string_key += chr(int(binary_key[i:i + 8], 2))
+
+    return string_key[::-1]
+
+
 def demonstrate():
 
     # dealing with key
@@ -418,6 +437,7 @@ for i in range(1, 10):
 
 
 if __name__ == "__main__":
+    # print(convert_number_key_to_string(0x41424344))
     demonstrate()
 
 # encrypted_matrix = encrypt_AES(key, msg)
