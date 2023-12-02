@@ -1,5 +1,6 @@
 import math
 import random
+import numpy as np
 import time
 from sympy import randprime
 
@@ -67,6 +68,32 @@ def multiply_point(P, n, a, p):
         t -= 1
     return Q
 
+
+def generate_parameters(p):
+    range = p >> 80  # just a random number
+
+    y = 0
+    while True:
+        y = np.random.randint(-range,range)
+
+        if y !=0: # at singular point, y = 0
+            break
+    
+    x = np.random.randint(-range,range)
+
+    b = 0
+    while True:
+        a = np.random.randint(-range,range)
+        b = (y*y - x*x*x - a*x)
+
+        if ((4*a*a*a + 27*b*b) % p) != 0:
+            break
+
+    G = (x,y)
+
+    return a,b,G
+
+    
 
 def calculate():
     # 128 digit prime

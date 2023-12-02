@@ -23,30 +23,35 @@ print(f"Server listening on {host}:{port}")
 client_socket, client_address = server_socket.accept()
 print(f"Connection from {client_address}")
 
-# receive data
-data = client_socket.recv(8192)
-# data is a dictionary, so deserialize it
-received_dict = pickle.loads(data)
-# print(received_dict)
+def establish_shared_key():
+        # receive dictionary
+        data = client_socket.recv(8192)
+        # data is a dictionary, so deserialize it
+        received_dict = pickle.loads(data)
+        # print(received_dict)
 
-a = received_dict['a']
-b = received_dict['b']
-p = received_dict['p']
-G = received_dict['G']
-A = received_dict['A']
+        a = received_dict['a']
+        b = received_dict['b']
+        p = received_dict['p']
+        G = received_dict['G']
+        A = received_dict['A']
 
-# bob is server
+        # bob is server
 
-# k_b --> Bob's private key
-k_b = p - (1 << 10) * random.randint(1,1000)
-# B --> Bob's public key
-B = ecc.multiply_point(G, k_b, a, p)
+        # k_b --> Bob's private key
+        k_b = p - (1 << 10) * random.randint(1,1000)
+        # B --> Bob's public key
+        B = ecc.multiply_point(G, k_b, a, p)
 
-data_to_send = {'B':B}
-serialized_data = pickle.dumps(data_to_send)
-client_socket.send(serialized_data)
+        data_to_send = {'B':B}
+        serialized_data = pickle.dumps(data_to_send)
+        client_socket.send(serialized_data)
 
-(key, y) = ecc.multiply_point(A, k_b, a, p)
+        (key, y) = ecc.multiply_point(A, k_b, a, p)
+
+        return aes.convert_number_key_to_string(key)        
+
+key = establish_shared_key()
 
 # receive a string from the client
 msg = client_socket.recv(8192).decode()
@@ -54,13 +59,18 @@ msg = client_socket.recv(8192).decode()
 if msg == "I am ready":    
         client_socket.send(b"I am ready")
 
-        # receive encrypted text
-        encrypted_text = client_socket.recv(8192).decode()
-        key = aes.convert_number_key_to_string(key)
+        while True:
+                # receive encrypted text
+                encrypted_text = client_socket.recv(8192).decode()
 
-        # print(key.encode('ascii', 'replace'))
-        decrypted_text = aes.aes_decrypt(encrypted_text, key)
-        print("Decrypted text:", decrypted_text)
+                # print(key.encode('ascii', 'replace'))
+                decrypted_text = aes.aes_decrypt(encrypted_text, key)
+                print("Decrypted text:", decrypted_text)
+
+                if decrypted_text == "close connection":
+                        break
+
+                key = establish_shared_key()
 else:
         print("Client not ready. Closing...")
 
