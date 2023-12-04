@@ -1,6 +1,8 @@
 import numpy as np
 import time as time
+import threading
 from BitVector import *
+
 
 Rcon = []
 Sbox = (
@@ -268,6 +270,63 @@ def aes_encrypt_msg(msg, scheduled_key, initializing_vector):
     
     return encrypted_msg
 
+# # Function to append an element to the list in a thread-safe manner
+# def append_to_list(item):
+#     with my_list_lock:
+#         my_list.append(item)
+    
+
+def ctr_parallel_op(plain_text, scheduled_key, Nonce, counter, encrypted_msg_blocks, msg_dict_lock):
+
+    Nonce = bitwise_xor_string(Nonce, str(counter))
+
+    encrypted_text = aes_encrypt_block(scheduled_key, Nonce)
+
+    make_block = blockify(plain_text) # makes it 16 bytes length by appeding characters
+    encrypted_text = bitwise_xor_string(encrypted_text, make_block) # nahole eta jhamela kore
+
+    encrypted_text = encrypted_text[0:len(plain_text)]
+
+    encrypted_msg_blocks[counter] = encrypted_text
+
+def blockify(plain_text):
+    if len(plain_text) == 16:
+        return plain_text
+    elif len(plain_text) < 16:
+        return plain_text + 'X' * (16 - len(plain_text))
+    else:
+        return plain_text[:16]
+
+def aes_encrypt_ctr(msg, scheduled_key, Nonce):
+     # part the msg in 16 byte chunks
+    msg_blocks = split_string_into_blocks(msg)
+    print(msg_blocks)
+
+    Nonce = make_key(Nonce)
+
+    encrypted_msg_blocks = {}
+    msg_dict_lock = threading.Lock()
+
+    threads = []
+    for i in range(len(msg_blocks)):
+        thread = threading.Thread(target=ctr_parallel_op, args=(msg_blocks[i], scheduled_key, Nonce, i, encrypted_msg_blocks, msg_dict_lock))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
+
+    sorted_keys = sorted(encrypted_msg_blocks)
+
+    encrypted_msg = ""
+    for i in sorted_keys:
+        encrypted_msg += encrypted_msg_blocks[i]
+
+    return encrypted_msg
+
+
+
 def aes_encrypt(msg, key, initializing_vector):
     return aes_encrypt_msg(msg, schedule_key(make_key(key)), initializing_vector)
 
@@ -344,7 +403,10 @@ def make_key(key):
     elif len(key) > 16:
         return key[:16]
     else:
-        return key + 'X' * (16 - len(key))
+        while(len(key) < 16):
+            key += key[::-1]
+        # return key + 'X' * (16 - len(key))
+        return key[:16]
 
 def print_string_in_hex(string):
     print("[ ", end="")
@@ -368,9 +430,9 @@ def convert_number_key_to_string(number_key):
     return string_key[::-1]
 
 
-def demonstrate():
+def demonstrate_cbc():
 
-    # dealing with key
+    print("CBC Performance")
     # key = "Thats my Kung Fu"
     print("Key: ")
     print("In ASCII: ", end="")
@@ -428,6 +490,64 @@ def demonstrate():
     print("Decryption Time: ", decryption_time * 1000, "ms")
 
 
+def demonstrate_ctr():
+    # dealing with key
+    print("CTR Performance")
+    print("Key: ")
+    print("In ASCII: ", end="")
+    key = input()
+
+    key = make_key(key)
+    print("In HEX: ", end="")
+    print_string_in_hex(key)
+    print()
+
+
+    print("Plain Text:")
+    print("In ASCII: ", end="")
+    msg = input()
+
+    print("In HEX: ", end="")
+    print_string_in_hex(msg)
+    print()
+
+    # 16 byte string
+    Nonce = "Thats my Kung Fu"
+
+    start = time.time()
+    scheduled_key = schedule_key(key)
+    key_schedule_time = time.time() - start
+
+    start = time.time()
+    encrypted_string = aes_encrypt_ctr(msg, scheduled_key, Nonce)
+    encryption_time = time.time() - start
+
+    # now printing the encrypted string
+    print("Ciphered Text:")
+    print("In ASCII: ", end="")
+    print(encrypted_string.encode('ascii', 'replace'))
+    print("In HEX: ", end="")
+    print_string_in_hex(encrypted_string)
+    print()
+
+    start = time.time()
+    decrypted_string = aes_encrypt_ctr(encrypted_string, scheduled_key, Nonce)
+    decryption_time = time.time() - start
+
+    # now printing the decrypted string
+    print("Deciphered Text:")
+    print("In ASCII: ", end="")
+    print(decrypted_string)
+    print("In HEX: ", end="")
+    print_string_in_hex(decrypted_string)
+    print()
+
+
+    print("Execution Time Details:")
+    print("Key Schedule Time: ", key_schedule_time * 1000, "ms")
+    print("Encryption Time: ", encryption_time * 1000, "ms")
+    print("Decryption Time: ", decryption_time * 1000, "ms")
+
 Rcon.append(1)
 for i in range(1, 10):
     if Rcon[i - 1] < 0x80:
@@ -437,23 +557,6 @@ for i in range(1, 10):
 
 
 if __name__ == "__main__":
-    # print(convert_number_key_to_string(0x41424344))
-    demonstrate()
-
-# encrypted_matrix = encrypt_AES(key, msg)
-
-# print(type(encrypted_matrix))
-# print("Encypted matrix:")
-# print_key_matrix_hex(encrypted_matrix)
-
-# encrypted_string = matrix_to_string(encrypted_matrix)
-# print(matrix_to_string(encrypted_matrix))
-
-# decrypted_matrix = decrypt_AES(key, encrypted_string)
-# print_key_matrix_hex(decrypted_matrix)
-
-# decrypted_string = matrix_to_string(decrypted_matrix)
-# print(decrypted_string)
-# # print(convert_matrix_to_string(decrypted_matrix))
-
+    demonstrate_cbc()
+    demonstrate_ctr()
 

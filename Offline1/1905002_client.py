@@ -19,7 +19,7 @@ def get_keys():
     (a,b,G) = ecc.generate_parameters(p)
 
     # k_a --> Alice's private key
-    k_a = p - (1 << 10) * random.randint(1,1000)
+    k_a = random.randint(1<<127, p-1)
 
     # A --> Alice's public key
     A = ecc.multiply_point(G, k_a, a, p)

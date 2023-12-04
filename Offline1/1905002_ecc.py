@@ -109,8 +109,8 @@ def calculate():
         for _ in range(1, n_iteration):      
             p = generate_prime_with_bits(key)
 
-            k_a = p - (1 << 10) * random.randint(1,1000)
-            k_b = p - (1 << 10) * random.randint(1,1000)
+            k_a = random.randint(1<<(key-1), p-1)
+            k_b = random.randint(1<<(key-1), p-1)
             
             a = -3
             b = 4
@@ -138,57 +138,4 @@ def calculate():
 
 if __name__ == "__main__":
     calculate()
-
-# print(modulo_inverse(2, 17))
-
-# 16 digit prime
-# prime = 8735839625367917
-
-# prime = 113
-
-# # code starts here
-# # the elliptic curve is y^2 = x^3 - 3x + 4
-# a = -3
-# b = 4
-
-# p = prime
-# G = (2, 7)
-
-# # both alice and bob have agreed on the values of a, b, p, G
-
-# # E is the order of the elliptic curve
-# E = p + 1 - 2 * int(math.sqrt(p))
-
-# start = time.time()
-
-# # alice code
-# # alice's private key
-# k_a = random.randint(2, E-1)
-# # alice's public key
-# A = multiply_point(G, k_a, a, p)
-
-
-# # bob code
-# k_b = random.randint(2, E-1)
-# B = multiply_point(G, k_b, a, p)
-
-# # alice sends A to bob
-# # bob sends B to alice
-
-# # alice computes k_aB
-# k_aB = multiply_point(B, k_a, a, p)
-
-# # bob computes k_bA
-# k_bA = multiply_point(A, k_b, a, p)
-
-# time_taken = time.time() - start
-
-# print("Time taken: ", time_taken * 1000, "ms")
-
-# print("Alice ", k_aB)
-# print("Bob ", k_bA)
-
-# for i in range(1,19):
-#     print(i, end ="")
-#     print("P: ", multiply_point((5,1), i, 2, 17))
 

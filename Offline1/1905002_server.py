@@ -37,9 +37,9 @@ def establish_shared_key():
         A = received_dict['A']
 
         # bob is server
-
+        
         # k_b --> Bob's private key
-        k_b = p - (1 << 10) * random.randint(1,1000)
+        k_b = random.randint(1<<127, p-1)
         # B --> Bob's public key
         B = ecc.multiply_point(G, k_b, a, p)
 
