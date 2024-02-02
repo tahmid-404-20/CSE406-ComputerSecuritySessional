@@ -1,6 +1,7 @@
 import numpy as np
 import time as time
 import threading
+import random
 from BitVector import *
 
 
@@ -268,13 +269,16 @@ def aes_encrypt_msg(msg, scheduled_key, initializing_vector):
     for i in range(0, len(encrypted_msg_blocks)):
         encrypted_msg += encrypted_msg_blocks[i]
     
-    return encrypted_msg
+    return encrypted_msg    
 
-# # Function to append an element to the list in a thread-safe manner
-# def append_to_list(item):
-#     with my_list_lock:
-#         my_list.append(item)
-    
+def blockify(plain_text):
+    if len(plain_text) == BLOCK_LENGTH_IN_BYTES:
+        return plain_text
+    elif len(plain_text) < BLOCK_LENGTH_IN_BYTES:
+        return plain_text + 'X' * (BLOCK_LENGTH_IN_BYTES - len(plain_text))
+    else:
+        return plain_text[:BLOCK_LENGTH_IN_BYTES]
+
 
 def ctr_parallel_op(plain_text, scheduled_key, Nonce, counter, encrypted_msg_blocks, msg_dict_lock):
 
@@ -289,18 +293,10 @@ def ctr_parallel_op(plain_text, scheduled_key, Nonce, counter, encrypted_msg_blo
 
     encrypted_msg_blocks[counter] = encrypted_text
 
-def blockify(plain_text):
-    if len(plain_text) == 16:
-        return plain_text
-    elif len(plain_text) < 16:
-        return plain_text + 'X' * (16 - len(plain_text))
-    else:
-        return plain_text[:16]
 
 def aes_encrypt_ctr(msg, scheduled_key, Nonce):
      # part the msg in 16 byte chunks
     msg_blocks = split_string_into_blocks(msg)
-    print(msg_blocks)
 
     Nonce = make_key(Nonce)
 
@@ -398,15 +394,15 @@ def aes_decrypt(msg, key):
     return aes_decrypt_msg(msg, schedule_key(make_key(key)))
 
 def make_key(key):
-    if len(key) == 16:
+    if len(key) == BLOCK_LENGTH_IN_BYTES:
         return key
-    elif len(key) > 16:
-        return key[:16]
+    elif len(key) > BLOCK_LENGTH_IN_BYTES:
+        return key[:BLOCK_LENGTH_IN_BYTES]
     else:
-        while(len(key) < 16):
+        while(len(key) < BLOCK_LENGTH_IN_BYTES):
             key += key[::-1]
         # return key + 'X' * (16 - len(key))
-        return key[:16]
+        return key[:BLOCK_LENGTH_IN_BYTES]
 
 def print_string_in_hex(string):
     print("[ ", end="")
@@ -453,7 +449,7 @@ def demonstrate_cbc():
     print()
 
     # 16 byte string
-    initializing_vector = "Thats my Kung Fu"
+    initializing_vector = str(random.randint(10 ** 15, 10 ** 16 - 1)) # 16 digit random number
 
     start = time.time()
     scheduled_key = schedule_key(key)
@@ -512,7 +508,7 @@ def demonstrate_ctr():
     print()
 
     # 16 byte string
-    Nonce = "Thats my Kung Fu"
+    Nonce = str(random.randint(10 ** 15, 10 ** 16 - 1)) # 16 digit random number
 
     start = time.time()
     scheduled_key = schedule_key(key)
@@ -558,5 +554,7 @@ for i in range(1, 10):
 
 if __name__ == "__main__":
     demonstrate_cbc()
+    print()
+    print()
     demonstrate_ctr()
 

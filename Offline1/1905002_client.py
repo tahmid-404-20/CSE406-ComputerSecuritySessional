@@ -51,6 +51,8 @@ def send_message(text, key):
     client_socket.send(encrypted_text.encode())
     return True
 
+
+# main starts here
 key = establish_shared_key()
 
     # tell that you are ready
